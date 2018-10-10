@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+
+<html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en">
+<head>
+    <meta charset="utf-8" />
+    <title>Coin Chart</title>
+
+    <script src="https://www.gstatic.com/charts/loader.js"></script>
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.3.1/jquery.min.js"></script>
+    <script src="https://static.codepen.io/assets/common/cookie_used_reload-94d7a225d8e38d8f986ec63c2fbe2fa0500b773deb52deef58b24dd35ce975d7.js"></script>
+    
+    <script>
+        var Url = "";
+
+        window.onload = function () {
+            document.getElementById("btnSubmit").onclick = function () {
+
+                document.getElementById("currency").value = document.getElementById("currency").value.toUpperCase();
+                if (document.getElementById("currency").value == "") {
+                    alert("Please enter a currency like BTC");
+                    return;
+                }
+
+                document.getElementById("base").value = document.getElementById("base").value.toUpperCase();
+                if (document.getElementById("base").value == "") {
+                    alert("Please enter a base currency like USD");
+                    return;
+                }
+
+                //https://min-api.cryptocompare.com/data/histoday?fsym=BTC&tsym=USD&limit=100
+
+                Url = "https://min-api.cryptocompare.com/data/histoday?fsym=" + document.getElementById("currency").value;
+                Url += "&tsym=" + document.getElementById("base").value + "&limit=100";
+
+                google.charts.load("current", { "packages": ["corechart"] });
+                google.charts.setOnLoadCallback(drawChart);
+            };
+        };
+
+        //api reference
+        //https://min-api.cryptocompare.com/
+
+        //chart reference
+        //https://google-developers.appspot.com/chart/interactive/docs/gallery/candlestickchart
+
+        //code to make chart responsive, need to work out how to redraw without running get again
+        //https://codepen.io/flopreynat/pen/BfLkA
+
+        //Url = "https://min-api.cryptocompare.com/data/histoday?fsym=BTC&tsym=USD&limit=100";
+
+        function drawChart() {
+            //get price data history for coin
+            $.get(Url, function (Coindata, status) {
+
+                if (status != "success") {
+                    alert("Could not get price data");
+                    return;
+                } else {
+                    var PriceHistory = Coindata.Data;
+
+                    var i =0;
+                    var Column = [];
+                    var Row = [];
+                    var today;
+
+                    var total = PriceHistory.length;
+                    if (total == 0) {
+                        alert("Invalid coin symbol");
+                        return;
+                    }
+
+                    //copy price history data from object into an array
+                    for(; i < total; i++) {
+                        Column = [];
+
+                        today = timeConverter(PriceHistory[i].time);
+                        Column.push(today);
+                        Column.push(PriceHistory[i].low);
+                        Column.push(PriceHistory[i].open);
+                        Column.push(PriceHistory[i].close);
+                        Column.push(PriceHistory[i].high);
+
+                        Row.push(Column);
+                    }
+
+                    //convert array to data table
+                    var data4 = google.visualization.arrayToDataTable(Row, true);
+
+                    //format the chart
+                    var options =
+                    {
+                        legend: "none",
+                        candlestick: {
+                            fallingColor: { stroke: "#000000", fill: "#a52714", strokeWidth: "0.5" }, // red
+                            risingColor: { stroke: "#000000", fill: "#0f9d58", strokeWidth: "0.5" } // green
+                        },
+                        colors: ["black"],
+                        chartArea: {left:80,top:20,width:"90%",height:"80%"}
+                    };
+
+                    //draw the chart
+                    var chart = new google.visualization.CandlestickChart(document.getElementById("chart_div"));
+                    chart.draw(data4, options);
+
+                }
+            });
+        }
+
+        function timeConverter(UNIX_timestamp){
+            var a = new Date(UNIX_timestamp * 1000);
+            var year = a.getFullYear();
+            var month = a.getMonth();
+            var day = a.getDate();
+            var time = month + "/" + day + "/" + year ;
+            return time;
+        }
+    </script>
+
+    <style>
+        .auto-style1 {
+            width: 54px;
+            font-size: 20px;
+        }
+        .auto-style4 {
+            height: 90vh;
+        }
+    </style>
+</head>
+
+<body style="height: 100vh;">
+    <p>
+        <input id="currency" title="Currency" type="text" class="auto-style1" value="BTC" />
+        <input id="base" title="Base Currency" type="text" class="auto-style1" value="USD" />
+        <input id = "btnSubmit" type="submit" value="Show" style="font-size: 20px;" />
+    </p>
+    <div id="chart_div" class="auto-style4"></div>    
+</body>
+</html>
