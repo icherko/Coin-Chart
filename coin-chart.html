@@ -10,10 +10,14 @@
     <script src="https://static.codepen.io/assets/common/cookie_used_reload-94d7a225d8e38d8f986ec63c2fbe2fa0500b773deb52deef58b24dd35ce975d7.js"></script>
     
     <script>
-        var Url = "";
+        
+        var GotData = 0;
+        var RowData = [];
+        var ChartOptions;
 
         window.onload = function () {
             document.getElementById("btnSubmit").onclick = function () {
+                var Url = "";
 
                 document.getElementById("currency").value = document.getElementById("currency").value.toUpperCase();
                 if (document.getElementById("currency").value == "") {
@@ -33,9 +37,64 @@
                 Url += "&tsym=" + document.getElementById("base").value + "&limit=100";
 
                 google.charts.load("current", { "packages": ["corechart"] });
-                google.charts.setOnLoadCallback(drawChart);
+
+                //get price data history for coin
+                $.get(Url, function (Coindata, status) {
+
+                    if (status != "success") {
+                        alert("Could not get price data");
+                        return;
+                    } else {
+                        var PriceHistory = Coindata.Data;
+
+                        var i = 0;
+                        var Column = [];
+                        var Row = [];
+                        var today;
+
+                        var total = PriceHistory.length;
+                        if (total == 0) {
+                            alert("Invalid coin symbol");
+                            return;
+                        }
+
+                        //copy price history data from object into an array
+                        //{"time":1530835200,"close":6602.02,"high":6633.44,"low":6458.14,"open":6534.81,"volumefrom":47259.68,"volumeto":310759733.14}
+
+                        for (; i < total; i++) {
+                            Column = [];
+
+                            today = timeConverter(PriceHistory[i].time);
+                            Column.push(today);
+                            Column.push(PriceHistory[i].low);
+                            Column.push(PriceHistory[i].open);
+                            Column.push(PriceHistory[i].close);
+                            Column.push(PriceHistory[i].high);
+
+                            Row.push(Column);
+                        }
+
+                        //convert array to data table
+                        RowData = google.visualization.arrayToDataTable(Row, true);
+                        GotData = 1;
+
+                        //format the chart
+                        ChartOptions = {
+                            legend: "none",
+                            candlestick: {
+                                fallingColor: { stroke: "#000000", fill: "#a52714", strokeWidth: "0.5" }, // red
+                                risingColor: { stroke: "#000000", fill: "#0f9d58", strokeWidth: "0.5" } // green
+                            },
+                            colors: ["black"],
+                            chartArea: { left: 80, top: 20, width: "90%", height: "80%" }
+                        };
+
+                        google.charts.setOnLoadCallback(drawChart);
+                    }
+                });
             };
         };
+
 
         //api reference
         //https://min-api.cryptocompare.com/
@@ -49,62 +108,16 @@
         //Url = "https://min-api.cryptocompare.com/data/histoday?fsym=BTC&tsym=USD&limit=100";
 
         function drawChart() {
-            //get price data history for coin
-            $.get(Url, function (Coindata, status) {
-
-                if (status != "success") {
-                    alert("Could not get price data");
-                    return;
-                } else {
-                    var PriceHistory = Coindata.Data;
-
-                    var i =0;
-                    var Column = [];
-                    var Row = [];
-                    var today;
-
-                    var total = PriceHistory.length;
-                    if (total == 0) {
-                        alert("Invalid coin symbol");
-                        return;
-                    }
-
-                    //copy price history data from object into an array
-                    for(; i < total; i++) {
-                        Column = [];
-
-                        today = timeConverter(PriceHistory[i].time);
-                        Column.push(today);
-                        Column.push(PriceHistory[i].low);
-                        Column.push(PriceHistory[i].open);
-                        Column.push(PriceHistory[i].close);
-                        Column.push(PriceHistory[i].high);
-
-                        Row.push(Column);
-                    }
-
-                    //convert array to data table
-                    var data4 = google.visualization.arrayToDataTable(Row, true);
-
-                    //format the chart
-                    var options =
-                    {
-                        legend: "none",
-                        candlestick: {
-                            fallingColor: { stroke: "#000000", fill: "#a52714", strokeWidth: "0.5" }, // red
-                            risingColor: { stroke: "#000000", fill: "#0f9d58", strokeWidth: "0.5" } // green
-                        },
-                        colors: ["black"],
-                        chartArea: {left:80,top:20,width:"90%",height:"80%"}
-                    };
-
-                    //draw the chart
-                    var chart = new google.visualization.CandlestickChart(document.getElementById("chart_div"));
-                    chart.draw(data4, options);
-
-                }
-            });
+            //draw the chart
+            if (GotData == 1) {
+                var chart = new google.visualization.CandlestickChart(document.getElementById("chart_div"));
+                chart.draw(RowData, ChartOptions);
+            }
         }
+
+        $(window).resize(function(){
+            drawChart();
+        });
 
         function timeConverter(UNIX_timestamp){
             var a = new Date(UNIX_timestamp * 1000);
@@ -132,7 +145,6 @@
         <input id="currency" title="Currency" type="text" class="auto-style1" value="BTC" />
         <input id="base" title="Base Currency" type="text" class="auto-style1" value="USD" />
         <input id = "btnSubmit" type="submit" value="Show" style="font-size: 20px;" />
-    </p>
     <div id="chart_div" class="auto-style4"></div>    
 </body>
 </html>
